@@ -3,7 +3,8 @@ import cryptor from 'crypto-js';
 
 const config = reactive({
   padding: 'Pkcs7',
-  mode: 'CBC',
+  mode: 'ECB',
+  secret: 'my secret key',
 });
 
 const modes = new Map<string, any>();
@@ -21,81 +22,92 @@ pads.set('Iso10126', cryptor.pad.Iso10126);
 pads.set('ZeroPadding', cryptor.pad.ZeroPadding);
 pads.set('NoPadding', cryptor.pad.NoPadding);
 
-const cypherInput = ref('Lorem ipsum dolor sit amet');
-const cypherSecret = ref('my secret key');
-const cypherOutput = computed(() => cryptor.AES.encrypt(cypherInput.value, cypherSecret.value, { padding: pads.get(config.padding), mode: modes.get(config.mode) }).toString());
+const raw = ref('');
+const encrypted = ref('');
 
-const decryptInput = ref('U2FsdGVkX1/EC3+6P5dbbkZ3e1kQ5o2yzuU0NHTjmrKnLBEwreV489Kr0DIB+uBs');
-const decryptSecret = ref('my secret key');
-const decryptOutput = computed(() => cryptor.AES.decrypt(decryptInput.value, decryptSecret.value, { padding: pads.get(config.padding), mode: modes.get(config.mode) }).toString(cryptor.enc.Utf8));
+function handleEncrypt() {
+  encrypted.value = cryptor.AES.encrypt(raw.value, config.secret, {
+    padding: pads.get(config.padding),
+    mode: modes.get(config.mode),
+  }).toString();
+}
+
+function handleDecrypt() {
+  raw.value = cryptor.AES.decrypt(encrypted.value, config.secret, {
+    padding: pads.get(config.padding),
+    mode: modes.get(config.mode),
+  }).toString(cryptor.enc.Utf8);
+}
 </script>
 
 <template>
   <div style="flex: 0 0 100%">
-    <div style="max-width: 600px" mx-auto mb-5 flex gap-2>
-      <c-select
-        v-model:value="config.padding"
-        flex-1
-        label="Padding"
-        :options="[
-          { label: 'PKCS7', value: 'Pkcs7' },
-          { label: 'Iso97971', value: 'Iso97971' },
-          { label: 'AnsiX923', value: 'AnsiX923' },
-          { label: 'Iso10126', value: 'Iso10126' },
-          { label: 'ZeroPadding', value: 'ZeroPadding' },
-          { label: 'NoPadding', value: 'NoPadding' },
-        ]"
-      />
-      <c-select
-        v-model:value="config.mode"
-        flex-1
-        label="Mode"
-        :options="[
-          { label: 'CBC', value: 'CBC' },
-          { label: 'CFB', value: 'CFB' },
-          { label: 'CTR', value: 'CTR' },
-          { label: 'OFB', value: 'OFB' },
-          { label: 'ECB', value: 'ECB' },
-        ]"
-      />
+    <div style="max-width: 600px" mx-auto mb-5>
+      <div class="flex gap-2">
+        <c-select
+          v-model:value="config.padding"
+          flex-1
+          label="Padding"
+          :options="[
+            { label: 'PKCS7', value: 'Pkcs7' },
+            { label: 'Iso97971', value: 'Iso97971' },
+            { label: 'AnsiX923', value: 'AnsiX923' },
+            { label: 'Iso10126', value: 'Iso10126' },
+            { label: 'ZeroPadding', value: 'ZeroPadding' },
+            { label: 'NoPadding', value: 'NoPadding' },
+          ]"
+        />
+        <c-select
+          v-model:value="config.mode"
+          flex-1
+          label="Mode"
+          :options="[
+            { label: 'ECB', value: 'ECB' },
+            { label: 'CBC', value: 'CBC' },
+            { label: 'CFB', value: 'CFB' },
+            { label: 'CTR', value: 'CTR' },
+            { label: 'OFB', value: 'OFB' },
+          ]"
+        />
+      </div>
+      <div class="mt-2">
+        <c-input-text
+          v-model:value="config.secret"
+          label="Secret"
+          clearable
+          raw-text
+          style="width: 100%"
+        />
+      </div>
     </div>
   </div>
-  <c-card title="Encrypt">
-    <div flex gap-3>
+
+  <div class="flex flex-col gap-4">
+    <c-card title="Raw" flex-1>
       <c-input-text
-        v-model:value="cypherInput"
-        label="Your text:"
-        placeholder="The string to cypher"
+        v-model:value="raw"
         rows="4"
+        placeholder=""
         multiline raw-text monospace autosize flex-1
       />
-      <c-input-text v-model:value="cypherSecret" label="Your secret key:" clearable raw-text />
+    </c-card>
+
+    <div class="my-2 flex justify-center gap-4">
+      <c-button @click="handleEncrypt">
+        Encrypt ↓
+      </c-button>
+      <c-button @click="handleDecrypt">
+        Decrypt ↑
+      </c-button>
     </div>
-    <c-input-text
-      label="Your text encrypted:"
-      :value="cypherOutput"
-      rows="3"
-      placeholder="Your string hash"
-      multiline monospace readonly autosize mt-5
-    />
-  </c-card>
-  <c-card title="Decrypt">
-    <div flex gap-3>
+
+    <c-card title="Encrypted" flex-1>
       <c-input-text
-        v-model:value="decryptInput"
-        label="Your text:"
-        placeholder="The string to cypher"
+        v-model:value="encrypted"
         rows="4"
+        placeholder=""
         multiline raw-text monospace autosize flex-1
       />
-      <c-input-text v-model:value="decryptSecret" label="Your secret key:" clearable raw-text />
-    </div>
-    <c-input-text
-      label="Your text encrypted:"
-      :value="decryptOutput"
-      rows="3"
-      placeholder="Your string hash"
-      multiline monospace readonly autosize mt-5
-    />
-  </c-card>
+    </c-card>
+  </div>
 </template>
