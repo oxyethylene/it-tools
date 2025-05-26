@@ -24,19 +24,64 @@ pads.set('NoPadding', cryptor.pad.NoPadding);
 
 const raw = ref('');
 const encrypted = ref('');
+const errorMessage = ref('');
+const showError = ref(false);
 
 function handleEncrypt() {
-  encrypted.value = cryptor.AES.encrypt(raw.value, config.secret, {
-    padding: pads.get(config.padding),
-    mode: modes.get(config.mode),
-  }).toString();
+  errorMessage.value = '';
+  showError.value = false;
+
+  try {
+    encrypted.value = cryptor.AES.encrypt(
+      raw.value,
+      cryptor.enc.Utf8.parse(config.secret),
+      {
+        padding: pads.get(config.padding),
+        mode: modes.get(config.mode),
+      },
+    ).toString();
+  }
+  catch (error) {
+    errorMessage.value = 'Failed to encrypt: Invalid settings or configuration';
+    showError.value = true;
+    console.error('Encryption error:', error);
+  }
 }
 
 function handleDecrypt() {
-  raw.value = cryptor.AES.decrypt(encrypted.value, config.secret, {
-    padding: pads.get(config.padding),
-    mode: modes.get(config.mode),
-  }).toString(cryptor.enc.Utf8);
+  errorMessage.value = '';
+  showError.value = false;
+
+  try {
+    const cipherParams = cryptor.lib.CipherParams.create({
+      ciphertext: cryptor.enc.Base64.parse(encrypted.value),
+    });
+
+    const decrypted = cryptor.AES.decrypt(
+      cipherParams,
+      cryptor.enc.Utf8.parse(config.secret),
+      {
+        padding: pads.get(config.padding),
+        mode: modes.get(config.mode),
+      },
+    ).toString(cryptor.enc.Utf8);
+
+    // Check if decryption was successful
+    if (!decrypted) {
+      throw new Error('Decryption failed - invalid output');
+    }
+
+    raw.value = decrypted;
+  }
+  catch (error) {
+    errorMessage.value = 'Failed to decrypt: Invalid ciphertext, key, or settings';
+    showError.value = true;
+    console.error('Decryption error:', error);
+  }
+}
+
+function closeError() {
+  showError.value = false;
 }
 </script>
 
@@ -83,13 +128,15 @@ function handleDecrypt() {
   </div>
 
   <div class="flex flex-col gap-4">
-    <c-card title="Raw" flex-1>
-      <c-input-text
-        v-model:value="raw"
-        rows="4"
-        placeholder=""
-        multiline raw-text monospace autosize flex-1
-      />
+    <c-card title="Raw" flex-1 style="width: 100%; max-width: 800px; margin: 0 auto;">
+      <div style="max-height: 300px; overflow-y: auto;">
+        <c-input-text
+          v-model:value="raw"
+          rows="4"
+          placeholder=""
+          multiline raw-text monospace autosize flex-1
+        />
+      </div>
     </c-card>
 
     <div class="my-2 flex justify-center gap-4">
@@ -101,13 +148,26 @@ function handleDecrypt() {
       </c-button>
     </div>
 
-    <c-card title="Encrypted" flex-1>
-      <c-input-text
-        v-model:value="encrypted"
-        rows="4"
-        placeholder=""
-        multiline raw-text monospace autosize flex-1
-      />
+    <!-- Error message alert -->
+    <c-alert
+      v-if="showError"
+      type="error"
+      dismissible
+      class="mb-2"
+      @dismiss="closeError"
+    >
+      {{ errorMessage }}
+    </c-alert>
+
+    <c-card title="Encrypted" flex-1 style="width: 100%; max-width: 800px; margin: 0 auto;">
+      <div style="max-height: 300px; overflow-y: auto;">
+        <c-input-text
+          v-model:value="encrypted"
+          rows="4"
+          placeholder=""
+          multiline raw-text monospace autosize flex-1
+        />
+      </div>
     </c-card>
   </div>
 </template>
